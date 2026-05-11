@@ -1,0 +1,69 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: #f5f7fa;
+  color: #333;
+}
+
+.app-container {
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 0 24px;
+  height: 60px;
+}
+
+.header-left .logo {
+  font-size: 20px;
+  font-weight: 700;
+  color: #409eff;
+  text-decoration: none;
+}
+
+.nav-menu {
+  flex: 1;
+  margin-left: 40px;
+  border-bottom: none !important;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-info {
+  cursor: pointer;
+  font-size: 14px;
+  color: #606266;
+}
+
+.app-main {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  color: #303133;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}

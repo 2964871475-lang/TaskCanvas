@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ===== Node.js (前端) =====
+node_modules/
+frontend/dist/
+*.local
+
+# ===== 项目数据库 =====
+backend/data/*.db
