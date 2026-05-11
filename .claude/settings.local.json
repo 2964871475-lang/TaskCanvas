@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "WebSearch",
+      "Bash(gh repo *)",
+      "WebFetch(domain:github.com)",
+      "Bash(curl *)"
     ]
   }
 }

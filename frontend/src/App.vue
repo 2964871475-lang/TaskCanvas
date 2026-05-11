@@ -13,14 +13,15 @@
         <el-menu-item index="/team">团队</el-menu-item>
       </el-menu>
       <div class="header-right">
-        <router-link v-if="!user" to="/login">
+        <router-link v-if="!store.isLoggedIn" to="/login">
           <el-button type="primary" size="small">登录</el-button>
         </router-link>
         <el-dropdown v-else>
-          <span class="user-info">{{ user.username }}</span>
+          <span class="user-info">{{ store.username }}</span>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item @click="logout">退出登录</el-dropdown-item>
+              <el-dropdown-item @click="$router.push('/profile')">个人档案</el-dropdown-item>
+              <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -33,20 +34,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { useUserStore } from "./stores/user";
 
 const router = useRouter();
-const user = ref(null);
+const store = useUserStore();
 
-onMounted(() => {
-  const saved = localStorage.getItem("user");
-  if (saved) user.value = JSON.parse(saved);
-});
-
-function logout() {
-  localStorage.removeItem("user");
-  user.value = null;
+function handleLogout() {
+  store.logout();
   router.push("/login");
 }
 </script>

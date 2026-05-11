@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from ..database import get_db
-from ..models import Task
+from ..models import Task, StudyRecord
 
 router = APIRouter(prefix="/api/tasks", tags=["任务看板"])
 
@@ -35,6 +35,19 @@ class TaskUpdate(BaseModel):
     sort_order: Optional[int] = None
 
 
+class BatchSortItem(BaseModel):
+    id: int
+    sort_order: int
+
+
+class StudyRecordCreate(BaseModel):
+    task_id: Optional[int] = None
+    user_id: int
+    duration_minutes: int
+    focus_score: float = 0.0
+    note: str = ""
+
+
 class TaskOut(BaseModel):
     id: int
     title: str
@@ -50,17 +63,11 @@ class TaskOut(BaseModel):
     streak_days: int
     created_at: datetime
     completed_at: Optional[datetime]
-
     model_config = {"from_attributes": True}
 
 
 @router.get("/", response_model=List[TaskOut])
-def list_tasks(
-    owner_id: int,
-    status: Optional[str] = None,
-    category: Optional[str] = None,
-    db: Session = Depends(get_db),
-):
+def list_tasks(owner_id: int, status: Optional[str] = None, category: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(Task).filter(Task.owner_id == owner_id)
     if status:
         query = query.filter(Task.status == status)
@@ -80,7 +87,7 @@ def create_task(data: TaskCreate, db: Session = Depends(get_db)):
 
 @router.get("/{task_id}", response_model=TaskOut)
 def get_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(Task).get(task_id)
+    task = db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     return task
@@ -88,7 +95,7 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.patch("/{task_id}", response_model=TaskOut)
 def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db)):
-    task = db.query(Task).get(task_id)
+    task = db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     update_data = data.model_dump(exclude_unset=True)
@@ -101,9 +108,32 @@ def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db)):
     return task
 
 
+@router.patch("/batch-sort")
+def batch_sort(items: List[BatchSortItem], db: Session = Depends(get_db)):
+    for item in items:
+        task = db.get(Task, item.id)
+        if task:
+            task.sort_order = item.sort_order
+    db.commit()
+    return {"message": "排序更新成功"}
+
+
+@router.post("/study-record")
+def create_study_record(data: StudyRecordCreate, db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    record = StudyRecord(
+        task_id=data.task_id, user_id=data.user_id,
+        start_time=now, end_time=now, duration_minutes=data.duration_minutes,
+        focus_score=data.focus_score, note=data.note,
+    )
+    db.add(record)
+    db.commit()
+    return {"message": "学习记录已保存"}
+
+
 @router.post("/{task_id}/checkin", response_model=TaskOut)
 def checkin_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(Task).get(task_id)
+    task = db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     now = datetime.now(timezone.utc)
@@ -120,7 +150,7 @@ def checkin_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.delete("/{task_id}", status_code=204)
 def delete_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(Task).get(task_id)
+    task = db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     db.delete(task)

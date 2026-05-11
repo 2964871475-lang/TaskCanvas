@@ -1,34 +1,70 @@
 <template>
   <div class="habits-page">
     <h1 class="page-title">习惯养成 & 番茄钟</h1>
-    <el-row :gutter="20">
-      <el-col :span="12">
-        <el-card>
+
+    <!-- 四个卡片：左列（习惯+排行）+ 右列（番茄钟+历史） -->
+    <el-row :gutter="20" class="habits-row">
+      <!-- 左列 -->
+      <el-col :span="12" class="habits-col">
+        <!-- 卡片1: 我的习惯 -->
+        <el-card class="habits-card" shadow="hover">
           <template #header>
             <div class="card-header">
               <span>我的习惯</span>
-              <el-button type="primary" size="small" @click="showAddHabit = true">+ 新建</el-button>
+              <div class="header-actions">
+                <span class="progress-text">{{ todayDone }}/{{ habits.length }}</span>
+                <el-button type="primary" size="small" @click="showAddHabit = true">+ 新建</el-button>
+              </div>
             </div>
           </template>
-          <div v-for="habit in habits" :key="habit.id" class="habit-item">
-            <span class="habit-icon">{{ habit.icon }}</span>
-            <span class="habit-name">{{ habit.name }}</span>
-            <el-button type="success" size="small" @click="checkin(habit)">打卡</el-button>
+          <div class="habit-list">
+            <div v-for="habit in habits" :key="habit.id" class="habit-item">
+              <span class="habit-icon">{{ habit.icon }}</span>
+              <div class="habit-info">
+                <span class="habit-name">{{ habit.name }}</span>
+                <div class="habit-dots">
+                  <span v-for="d in 7" :key="d" class="dot" :class="{ done: isDayDone(habit, d) }" :title="dayLabel(d)" />
+                </div>
+              </div>
+              <div class="habit-actions">
+                <el-button type="success" size="small" @click="checkin(habit)">打卡</el-button>
+                <el-button size="small" text @click="editHabit(habit)">编辑</el-button>
+                <el-button type="danger" size="small" text @click="removeHabit(habit)">删除</el-button>
+              </div>
+            </div>
+            <el-empty v-if="!habits.length" description="还没有习惯" :image-size="60" />
           </div>
-          <el-empty v-if="!habits.length" description="还没有习惯，点击新建" />
+        </el-card>
+
+        <!-- 卡片2: 专注排行榜 -->
+        <el-card class="habits-card" shadow="hover">
+          <template #header><span>专注排行榜（本周）</span></template>
+          <div class="leaderboard-list">
+            <div v-for="(item, i) in leaderboard" :key="item.username" class="leader-item">
+              <span class="rank">#{{ i + 1 }}</span>
+              <span class="name">{{ item.username }}</span>
+              <span class="minutes">{{ item.total_minutes }}分钟</span>
+            </div>
+            <el-empty v-if="!leaderboard.length" description="暂无数据" :image-size="60" />
+          </div>
         </el-card>
       </el-col>
-      <el-col :span="12">
-        <el-card>
-          <template #header>番茄钟</template>
+
+      <!-- 右列 -->
+      <el-col :span="12" class="habits-col">
+        <!-- 卡片3: 番茄钟 -->
+        <el-card class="habits-card" shadow="hover">
+          <template #header><span>番茄钟</span></template>
           <div class="pomodoro">
-            <div class="timer-display">{{ formatTime(timeLeft) }}</div>
+            <div class="timer-display" :class="{ running: isRunning }">{{ formatTime(timeLeft) }}</div>
             <div class="timer-actions">
-              <el-button v-if="!isRunning" type="primary" size="large" @click="startTimer">开始专注</el-button>
-              <el-button v-else type="danger" size="large" @click="stopTimer">停止</el-button>
+              <el-button v-if="!isRunning && !isPaused" type="primary" size="large" @click="startTimer">开始专注</el-button>
+              <el-button v-else-if="isRunning" type="warning" size="large" @click="pauseTimer">暂停</el-button>
+              <el-button v-if="isPaused" type="primary" size="large" @click="resumeTimer">继续</el-button>
+              <el-button v-if="isRunning || isPaused" type="danger" size="large" @click="stopTimer">结束</el-button>
             </div>
             <div class="timer-presets">
-              <el-radio-group v-model="duration" :disabled="isRunning">
+              <el-radio-group v-model="duration" :disabled="isRunning || isPaused">
                 <el-radio-button :value="25">25分钟</el-radio-button>
                 <el-radio-button :value="45">45分钟</el-radio-button>
                 <el-radio-button :value="60">60分钟</el-radio-button>
@@ -36,174 +72,196 @@
             </div>
           </div>
         </el-card>
-        <el-card style="margin-top: 16px">
-          <template #header>专注排行榜（本周）</template>
-          <div v-for="(item, i) in leaderboard" :key="item.username" class="leader-item">
-            <span class="rank">#{{ i + 1 }}</span>
-            <span class="name">{{ item.username }}</span>
-            <span class="minutes">{{ item.total_minutes }}分钟</span>
+
+        <!-- 卡片4: 番茄钟历史 -->
+        <el-card class="habits-card" shadow="hover">
+          <template #header><span>番茄钟历史</span></template>
+          <div class="history-list">
+            <div v-for="s in pomodoroHistory" :key="s.id" class="history-item">
+              <span>{{ s.duration_minutes }}分钟</span>
+              <span class="history-time">{{ formatDateTime(s.started_at) }}</span>
+            </div>
+            <el-empty v-if="!pomodoroHistory.length" description="暂无记录" :image-size="60" />
           </div>
-          <el-empty v-if="!leaderboard.length" description="暂无数据" />
         </el-card>
       </el-col>
     </el-row>
 
-    <el-dialog v-model="showAddHabit" title="新建习惯">
-      <el-form :model="newHabit">
-        <el-form-item label="名称"><el-input v-model="newHabit.name" /></el-form-item>
-        <el-form-item label="图标"><el-input v-model="newHabit.icon" style="width:80px" /></el-form-item>
+    <!-- 新建/编辑习惯对话框 -->
+    <el-dialog v-model="showAddHabit" :title="editingHabit ? '编辑习惯' : '新建习惯'">
+      <el-form :model="habitForm">
+        <el-form-item label="名称"><el-input v-model="habitForm.name" /></el-form-item>
+        <el-form-item label="图标"><el-input v-model="habitForm.icon" style="width:80px" /></el-form-item>
         <el-form-item label="频率">
-          <el-radio-group v-model="newHabit.frequency">
+          <el-radio-group v-model="habitForm.frequency">
             <el-radio value="daily">每天</el-radio>
             <el-radio value="weekly">每周</el-radio>
           </el-radio-group>
         </el-form-item>
+        <el-form-item label="每日目标"><el-input-number v-model="habitForm.target_count" :min="1" :max="10" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showAddHabit = false">取消</el-button>
-        <el-button type="primary" @click="createHabit">确定</el-button>
+        <el-button type="primary" @click="saveHabit">确定</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ref, computed, onMounted } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import dayjs from "dayjs";
 import { habitApi } from "../api";
+import { useUserStore } from "../stores/user";
 
+const store = useUserStore();
 const habits = ref([]);
 const leaderboard = ref([]);
+const pomodoroHistory = ref([]);
 const showAddHabit = ref(false);
-const newHabit = ref({ name: "", icon: "✓", frequency: "daily" });
+const editingHabit = ref(null);
+const habitForm = ref({ name: "", icon: "✓", frequency: "daily", target_count: 1 });
 
 const duration = ref(25);
 const timeLeft = ref(25 * 60);
 const isRunning = ref(false);
+const isPaused = ref(false);
 let timer = null;
 let currentSessionId = null;
+const habitRecords = ref({});
 
-function getUser() {
-  return JSON.parse(localStorage.getItem("user") || "{}");
-}
+const todayDone = computed(() => {
+  const today = dayjs().format("YYYY-MM-DD");
+  return habits.value.filter((h) => {
+    const records = habitRecords.value[h.id] || [];
+    return records.some((r) => dayjs(r.completed_at).format("YYYY-MM-DD") === today);
+  }).length;
+});
 
-function formatTime(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+function formatTime(s) { return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; }
+function formatDateTime(d) { return dayjs(d).format("MM-DD HH:mm"); }
+function dayLabel(d) { return ["一", "二", "三", "四", "五", "六", "日"][d - 1]; }
+function isDayDone(habit, d) {
+  const records = habitRecords.value[habit.id] || [];
+  const target = dayjs().subtract(7 - d, "day").format("YYYY-MM-DD");
+  return records.some((r) => dayjs(r.completed_at).format("YYYY-MM-DD") === target);
 }
 
 async function loadHabits() {
-  const user = getUser();
-  if (!user.id) return;
-  const { data } = await habitApi.list(user.id);
+  if (!store.userId) return;
+  const { data } = await habitApi.list(store.userId);
   habits.value = data;
+  for (const h of data) {
+    try {
+      const { data: recs } = await habitApi.getRecords(h.id);
+      habitRecords.value[h.id] = recs;
+    } catch { habitRecords.value[h.id] = []; }
+  }
 }
 
-async function loadLeaderboard() {
-  const { data } = await habitApi.leaderboard();
-  leaderboard.value = data;
+async function loadLeaderboard() { try { const { data } = await habitApi.leaderboard(); leaderboard.value = data; } catch {} }
+async function loadPomodoroHistory() { if (!store.userId) return; try { const { data } = await habitApi.pomodoroHistory(store.userId); pomodoroHistory.value = data; } catch {} }
+
+function editHabit(habit) {
+  editingHabit.value = habit;
+  habitForm.value = { name: habit.name, icon: habit.icon, frequency: habit.frequency, target_count: habit.target_count };
+  showAddHabit.value = true;
 }
 
-async function createHabit() {
-  const user = getUser();
-  await habitApi.create({ ...newHabit.value, user_id: user.id });
+async function saveHabit() {
+  if (editingHabit.value) {
+    await habitApi.update(editingHabit.value.id, habitForm.value);
+  } else {
+    await habitApi.create({ ...habitForm.value, user_id: store.userId });
+  }
   showAddHabit.value = false;
+  editingHabit.value = null;
+  habitForm.value = { name: "", icon: "✓", frequency: "daily", target_count: 1 };
+  loadHabits();
+}
+
+async function removeHabit(habit) {
+  await ElMessageBox.confirm("确定删除？", "提示", { type: "warning" });
+  await habitApi.delete(habit.id);
   loadHabits();
 }
 
 async function checkin(habit) {
   const { data } = await habitApi.checkin(habit.id);
-  ElMessage.success(`${habit.name} 打卡成功！今日 ${data.today_count}/${data.target}`);
+  ElMessage.success(`${habit.name} 打卡成功！${data.today_count}/${data.target}`);
+  loadHabits();
 }
 
-async function startTimer() {
+function startTimer() {
   timeLeft.value = duration.value * 60;
   isRunning.value = true;
-  const user = getUser();
-  const { data } = await habitApi.startPomodoro({ user_id: user.id, duration_minutes: duration.value });
-  currentSessionId = data.id;
-
-  timer = setInterval(() => {
-    timeLeft.value--;
-    if (timeLeft.value <= 0) {
-      completeTimer();
-    }
-  }, 1000);
+  isPaused.value = false;
+  timer = setInterval(() => { timeLeft.value--; if (timeLeft.value <= 0) completeTimer(); }, 1000);
+  habitApi.startPomodoro({ user_id: store.userId, duration_minutes: duration.value }).then(({ data }) => { currentSessionId = data.id; });
 }
 
-async function stopTimer() {
-  completeTimer();
-}
+function pauseTimer() { isRunning.value = false; isPaused.value = true; clearInterval(timer); }
+function resumeTimer() { isRunning.value = true; isPaused.value = false; timer = setInterval(() => { timeLeft.value--; if (timeLeft.value <= 0) completeTimer(); }, 1000); }
+
+async function stopTimer() { completeTimer(); }
 
 async function completeTimer() {
   clearInterval(timer);
   isRunning.value = false;
+  isPaused.value = false;
   if (currentSessionId) {
     await habitApi.completePomodoro(currentSessionId);
     ElMessage.success("专注完成！");
     currentSessionId = null;
     loadLeaderboard();
+    loadPomodoroHistory();
   }
 }
 
-onMounted(() => {
-  loadHabits();
-  loadLeaderboard();
-});
+onMounted(() => { loadHabits(); loadLeaderboard(); loadPomodoroHistory(); });
 </script>
 
 <style scoped>
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.habit-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-.habit-icon {
-  font-size: 24px;
-}
-.habit-name {
-  flex: 1;
-}
-.pomodoro {
-  text-align: center;
-  padding: 20px;
-}
-.timer-display {
-  font-size: 64px;
-  font-weight: 700;
-  color: #409eff;
-  font-family: monospace;
-  margin-bottom: 20px;
-}
-.timer-actions {
-  margin-bottom: 16px;
-}
-.timer-presets {
-  margin-top: 12px;
-}
-.leader-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-}
-.rank {
-  font-weight: 700;
-  color: #e6a23c;
-  width: 40px;
-}
-.name {
-  flex: 1;
-}
-.minutes {
-  color: #909399;
-}
+.habits-row { align-items: stretch; }
+.habits-col { display: flex; flex-direction: column; gap: 16px; }
+.habits-card { flex: 1; min-height: 200px; display: flex; flex-direction: column; }
+
+.card-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.header-actions { display: flex; gap: 8px; align-items: center; }
+.progress-text { font-weight: 600; color: #409eff; font-size: 14px; }
+
+/* 习惯列表 */
+.habit-list { min-height: 100px; }
+.habit-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+.habit-item:last-child { border-bottom: none; }
+.habit-icon { font-size: 24px; width: 36px; text-align: center; flex-shrink: 0; }
+.habit-info { flex: 1; min-width: 0; }
+.habit-name { font-weight: 500; display: block; margin-bottom: 4px; }
+.habit-dots { display: flex; gap: 4px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #dcdfe6; }
+.dot.done { background: #67c23a; }
+.habit-actions { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
+
+/* 排行榜 */
+.leaderboard-list { min-height: 100px; }
+.leader-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+.leader-item:last-child { border-bottom: none; }
+.rank { font-weight: 700; color: #e6a23c; width: 36px; flex-shrink: 0; }
+.name { flex: 1; min-width: 0; }
+.minutes { color: #909399; flex-shrink: 0; }
+
+/* 番茄钟 */
+.pomodoro { text-align: center; padding: 20px; }
+.timer-display { font-size: 56px; font-weight: 700; color: #409eff; font-family: monospace; margin-bottom: 20px; }
+.timer-display.running { color: #e6a23c; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+.timer-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+.timer-presets { margin-top: 12px; }
+
+/* 番茄钟历史 */
+.history-list { min-height: 100px; }
+.history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+.history-item:last-child { border-bottom: none; }
+.history-time { color: #909399; }
 </style>

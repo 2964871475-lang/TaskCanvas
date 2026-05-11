@@ -29,11 +29,14 @@
 
 <script setup>
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
 import { userApi } from "../api";
+import { useUserStore } from "../stores/user";
 
 const router = useRouter();
+const route = useRoute();
+const store = useUserStore();
 const isRegister = ref(false);
 const loading = ref(false);
 const form = ref({ username: "", password: "", email: "" });
@@ -47,12 +50,12 @@ async function handleSubmit() {
       isRegister.value = false;
     } else {
       const { data } = await userApi.login(form.value);
-      localStorage.setItem("user", JSON.stringify(data));
+      store.setUser(data);
       ElMessage.success("登录成功");
-      router.push("/");
+      router.push(route.query.redirect || "/");
     }
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || "操作失败");
+    // interceptor handles error display
   } finally {
     loading.value = false;
   }
@@ -60,22 +63,8 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-.login-page {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 80vh;
-}
-.login-card {
-  width: 400px;
-  padding: 20px;
-}
-.login-card h2 {
-  text-align: center;
-  margin-bottom: 24px;
-  color: #303133;
-}
-.switch-mode {
-  text-align: center;
-}
+.login-page { display: flex; justify-content: center; align-items: center; min-height: 80vh; }
+.login-card { width: 400px; padding: 20px; }
+.login-card h2 { text-align: center; margin-bottom: 24px; color: #303133; }
+.switch-mode { text-align: center; }
 </style>

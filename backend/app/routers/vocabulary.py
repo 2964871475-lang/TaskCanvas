@@ -136,6 +136,17 @@ def answer_word(word_id: int, data: StudyAnswer, db: Session = Depends(get_db)):
     return word
 
 
+@router.post("/words/{word_id}/star", response_model=WordOut)
+def toggle_star(word_id: int, db: Session = Depends(get_db)):
+    word = db.get(Word, word_id)
+    if not word:
+        raise HTTPException(status_code=404, detail="单词不存在")
+    word.is_starred = not word.is_starred
+    db.commit()
+    db.refresh(word)
+    return word
+
+
 @router.get("/error-words", response_model=List[WordOut])
 def get_error_words(user_id: int, db: Session = Depends(get_db)):
     return (
