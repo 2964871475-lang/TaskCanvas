@@ -78,7 +78,11 @@ def list_tasks(owner_id: int, status: Optional[str] = None, category: Optional[s
 
 @router.post("/", response_model=TaskOut, status_code=201)
 def create_task(data: TaskCreate, db: Session = Depends(get_db)):
-    task = Task(**data.model_dump())
+    task_data = data.model_dump()
+    # 如果创建时状态为 done，自动设置 completed_at
+    if task_data.get("status") == "done":
+        task_data["completed_at"] = datetime.now(timezone.utc)
+    task = Task(**task_data)
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -99,8 +103,14 @@ def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db)):
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     update_data = data.model_dump(exclude_unset=True)
-    if update_data.get("status") == "done" and task.status != "done":
+
+    # 处理 completed_at 生命周期
+    new_status = update_data.get("status")
+    if new_status == "done" and task.status != "done":
         update_data["completed_at"] = datetime.now(timezone.utc)
+    elif new_status and new_status != "done" and task.status == "done":
+        update_data["completed_at"] = None
+
     for key, value in update_data.items():
         setattr(task, key, value)
     db.commit()
@@ -138,8 +148,15 @@ def checkin_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="任务不存在")
     now = datetime.now(timezone.utc)
     if task.last_checkin:
-        days_diff = (now - task.last_checkin).days
-        task.streak_days = task.streak_days + 1 if days_diff <= 1 else 1
+        # 确保 last_checkin 有时区信息
+        last_checkin = task.last_checkin
+        if last_checkin.tzinfo is None:
+            last_checkin = last_checkin.replace(tzinfo=timezone.utc)
+        days_diff = (now - last_checkin).days
+        # 防止同一天重复签到
+        if days_diff == 0:
+            return task
+        task.streak_days = task.streak_days + 1 if days_diff == 1 else 1
     else:
         task.streak_days = 1
     task.last_checkin = now

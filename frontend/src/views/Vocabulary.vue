@@ -21,6 +21,16 @@
                   <el-tag size="small">{{ book.word_count || 0 }}词</el-tag>
                 </div>
                 <el-empty v-if="!books.length" description="还没有词书" :image-size="60" />
+                <el-button
+                  type="primary"
+                  plain
+                  size="small"
+                  class="import-kaoyan-btn"
+                  @click="importKaoyan"
+                  :loading="importing"
+                >
+                  📚 导入考研词汇
+                </el-button>
               </div>
             </el-card>
           </el-col>
@@ -154,6 +164,7 @@ const showAddBook = ref(false);
 const newBook = ref({ name: "", description: "" });
 const showBatchImport = ref(false);
 const batchText = ref("");
+const importing = ref(false);
 
 async function loadBooks() {
   if (!store.userId) return;
@@ -192,7 +203,7 @@ async function startReview() {
 
 async function answerWord(isCorrect) {
   if (!currentWord.value) return;
-  await vocabApi.answer(currentWord.value.id, isCorrect);
+  await vocabApi.answer(currentWord.value.id, isCorrect, store.userId);
   reviewIndex.value++;
   if (reviewIndex.value < reviewWords.value.length) {
     currentWord.value = reviewWords.value[reviewIndex.value];
@@ -229,6 +240,23 @@ async function batchImport() {
   selectBook(currentBook.value);
 }
 
+async function importKaoyan() {
+  importing.value = true;
+  try {
+    const { data } = await vocabApi.importKaoyan(store.userId);
+    if (data.length > 0) {
+      ElMessage.success(`成功导入 ${data.length} 本考研词书`);
+      loadBooks();
+    } else {
+      ElMessage.info("考研词书已存在，无需重复导入");
+    }
+  } catch (e) {
+    ElMessage.error("导入失败");
+  } finally {
+    importing.value = false;
+  }
+}
+
 onMounted(() => { loadBooks(); loadErrors(); });
 </script>
 
@@ -245,6 +273,12 @@ onMounted(() => { loadBooks(); loadErrors(); });
 .book-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; cursor: pointer; border-radius: 6px; transition: background .2s; margin-bottom: 2px; }
 .book-item:hover { background: #f0f5ff; }
 .book-item.active { background: #ecf5ff; color: #409eff; }
+
+.import-kaoyan-btn {
+  width: 100%;
+  margin-top: 12px;
+  border-style: dashed;
+}
 
 /* 复习模式 */
 .review-card { text-align: center; padding: 40px 20px; }

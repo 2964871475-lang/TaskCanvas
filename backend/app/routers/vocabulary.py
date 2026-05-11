@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from ..database import get_db
 from ..models import WordBook, Word, WordStudyRecord
+from ..data.kaoyan_words import KAOYAN_BOOKS
 
 router = APIRouter(prefix="/api/vocabulary", tags=["单词学习"])
 
@@ -53,6 +54,7 @@ class WordBookOut(BaseModel):
 
 class StudyAnswer(BaseModel):
     is_correct: bool
+    user_id: int
 
 
 def calc_next_review(review_count: int) -> datetime:
@@ -118,10 +120,10 @@ def get_review_words(user_id: int, limit: int = 20, db: Session = Depends(get_db
 
 @router.post("/words/{word_id}/answer", response_model=WordOut)
 def answer_word(word_id: int, data: StudyAnswer, db: Session = Depends(get_db)):
-    word = db.query(Word).get(word_id)
+    word = db.get(Word, word_id)
     if not word:
         raise HTTPException(status_code=404, detail="单词不存在")
-    record = WordStudyRecord(word_id=word_id, user_id=1, is_correct=data.is_correct)
+    record = WordStudyRecord(word_id=word_id, user_id=data.user_id, is_correct=data.is_correct)
     db.add(record)
     if data.is_correct:
         word.review_count += 1
@@ -156,3 +158,43 @@ def get_error_words(user_id: int, db: Session = Depends(get_db)):
         .order_by(Word.error_count.desc())
         .all()
     )
+
+
+@router.post("/import-kaoyan", response_model=List[WordBookOut])
+def import_kaoyan_books(user_id: int, db: Session = Depends(get_db)):
+    """导入考研英语预设词书"""
+    imported_books = []
+    for book_data in KAOYAN_BOOKS:
+        # 检查是否已存在同名词书
+        existing = db.query(WordBook).filter(
+            WordBook.user_id == user_id,
+            WordBook.name == book_data["name"]
+        ).first()
+        if existing:
+            continue
+
+        # 创建词书
+        book = WordBook(
+            name=book_data["name"],
+            description=book_data["description"],
+            user_id=user_id
+        )
+        db.add(book)
+        db.flush()
+
+        # 添加单词
+        for word_data in book_data["words"]:
+            word = Word(
+                book_id=book.id,
+                english=word_data["english"],
+                chinese=word_data["chinese"],
+                phonetic=word_data.get("phonetic", "")
+            )
+            db.add(word)
+
+        imported_books.append(book)
+
+    db.commit()
+    for book in imported_books:
+        db.refresh(book)
+    return imported_books

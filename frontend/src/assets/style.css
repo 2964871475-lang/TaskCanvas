@@ -1,3 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --primary: #4A90D9;
+  --primary-light: #6BA5E7;
+  --primary-dark: #3A7BC8;
+  --accent: #5B9BD5;
+  --success: #67C23A;
+  --warning: #E6A23C;
+  --danger: #F56C6C;
+  --bg-main: #F5F7FA;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F0F5FF;
+  --text-primary: #303133;
+  --text-regular: #606266;
+  --text-secondary: #909399;
+  --border-light: #E4E7ED;
+  --border-lighter: #EBEEF5;
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -5,65 +30,272 @@
 }
 
 body {
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  background: #f5f7fa;
-  color: #333;
+  font-family: 'Noto Sans SC', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* App container */
 .app-container {
   min-height: 100vh;
 }
 
+/* Header styles */
 .app-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-  padding: 0 24px;
-  height: 60px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  padding: 0 32px;
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid var(--border-lighter);
 }
 
 .header-left .logo {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
-  color: #409eff;
+  color: var(--primary);
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s ease;
+}
+
+.header-left .logo:hover {
+  color: var(--primary-dark);
+}
+
+.header-left .logo-icon {
+  font-size: 24px;
 }
 
 .nav-menu {
   flex: 1;
-  margin-left: 40px;
+  margin-left: 48px;
   border-bottom: none !important;
+  background: transparent !important;
+}
+
+.nav-menu .el-menu-item {
+  color: var(--text-regular) !important;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border-radius: var(--radius-sm);
+  margin: 0 4px;
+}
+
+.nav-menu .el-menu-item:hover,
+.nav-menu .el-menu-item.is-active {
+  color: var(--primary) !important;
+  background: var(--bg-hover) !important;
+}
+
+.nav-menu .el-menu-item .el-icon {
+  margin-right: 4px;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .user-info {
   cursor: pointer;
   font-size: 14px;
-  color: #606266;
+  color: var(--text-regular);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
 }
 
+.user-info:hover {
+  background: var(--bg-hover);
+  color: var(--primary);
+}
+
+/* Main content */
 .app-main {
-  padding: 24px;
-  max-width: 1200px;
+  padding: 24px 32px;
+  max-width: 1280px;
   margin: 0 auto;
 }
 
+/* Page title */
 .page-title {
   font-size: 24px;
   font-weight: 600;
   margin-bottom: 24px;
-  color: #303133;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
+.page-title-icon {
+  font-size: 28px;
+}
+
+/* Card grid */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* Card styles */
+.el-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-lighter) !important;
+  border-radius: var(--radius-md) !important;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.el-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light) !important;
+}
+
+.el-card__header {
+  border-bottom: 1px solid var(--border-lighter) !important;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 16px 20px !important;
+}
+
+.el-card__body {
+  padding: 20px !important;
+}
+
+/* Button styles */
+.el-button--primary {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus {
+  background: var(--primary-light) !important;
+  border-color: var(--primary-light) !important;
+}
+
+.el-button--default {
+  border-color: var(--border-light) !important;
+  color: var(--text-regular) !important;
+}
+
+.el-button--default:hover {
+  color: var(--primary) !important;
+  border-color: var(--primary-light) !important;
+  background: var(--bg-hover) !important;
+}
+
+/* Progress bar */
+.el-progress-bar__outer {
+  background: var(--border-lighter) !important;
+  border-radius: 4px !important;
+}
+
+.el-progress-bar__inner {
+  background: var(--primary) !important;
+  border-radius: 4px !important;
+}
+
+/* Input styles */
+.el-input__wrapper {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease;
+}
+
+.el-input__wrapper:hover,
+.el-input__wrapper.is-focus {
+  border-color: var(--primary-light) !important;
+}
+
+.el-input__inner {
+  color: var(--text-primary) !important;
+}
+
+/* Tag styles */
+.el-tag {
+  border-radius: 4px !important;
+  font-weight: 500;
+}
+
+/* Table styles */
+.el-table {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
+
+.el-table th {
+  background: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+.el-table td {
+  border-bottom: 1px solid var(--border-lighter) !important;
+}
+
+.el-table--enable-row-hover .el-table__body tr:hover > td {
+  background: var(--bg-hover) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0 16px;
+    height: 56px;
+  }
+
+  .header-left .logo {
+    font-size: 18px;
+  }
+
+  .nav-menu {
+    margin-left: 24px;
+  }
+
+  .app-main {
+    padding: 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
 }

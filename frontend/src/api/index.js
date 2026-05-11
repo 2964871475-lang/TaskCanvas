@@ -58,9 +58,10 @@ export const vocabApi = {
   addWord: (bookId, data) => api.post(`/vocabulary/books/${bookId}/words`, data),
   batchAdd: (bookId, data) => api.post(`/vocabulary/books/${bookId}/words/batch`, data),
   getReview: (userId, limit) => api.get("/vocabulary/review", { params: { user_id: userId, limit } }),
-  answer: (wordId, isCorrect) => api.post(`/vocabulary/words/${wordId}/answer`, { is_correct: isCorrect }),
+  answer: (wordId, isCorrect, userId) => api.post(`/vocabulary/words/${wordId}/answer`, { is_correct: isCorrect, user_id: userId }),
   getErrors: (userId) => api.get("/vocabulary/error-words", { params: { user_id: userId } }),
   toggleStar: (wordId) => api.post(`/vocabulary/words/${wordId}/star`),
+  importKaoyan: (userId) => api.post(`/vocabulary/import-kaoyan?user_id=${userId}`),
 };
 
 // 习惯接口

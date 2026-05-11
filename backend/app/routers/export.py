@@ -11,6 +11,13 @@ from ..models import Task, Word, WordBook, WordStudyRecord, PomodoroSession
 router = APIRouter(prefix="/api/export", tags=["导出"])
 
 
+def ensure_utc(dt):
+    """确保 datetime 有时区信息"""
+    if dt and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 @router.get("/weekly-report")
 def weekly_report(user_id: int, db: Session = Depends(get_db)):
     import matplotlib
@@ -23,30 +30,34 @@ def weekly_report(user_id: int, db: Session = Depends(get_db)):
     week_ago = today - timedelta(days=7)
 
     # 任务数据
-    tasks = db.query(Task).filter(Task.owner_id == user_id, Task.completed_at >= week_ago).all()
+    tasks = db.query(Task).filter(Task.owner_id == user_id, Task.status == "done").all()
     daily_tasks = {(today - timedelta(days=6 - i)).strftime("%m-%d"): 0 for i in range(7)}
     for t in tasks:
-        if t.completed_at:
-            day = t.completed_at.strftime("%m-%d")
+        completed_at = ensure_utc(t.completed_at)
+        if completed_at and completed_at >= week_ago:
+            day = completed_at.strftime("%m-%d")
             if day in daily_tasks:
                 daily_tasks[day] += 1
 
     # 单词数据
-    word_records = db.query(WordStudyRecord).filter(WordStudyRecord.user_id == user_id, WordStudyRecord.studied_at >= week_ago).all()
+    word_records = db.query(WordStudyRecord).filter(WordStudyRecord.user_id == user_id).all()
     daily_words = {(today - timedelta(days=6 - i)).strftime("%m-%d"): 0 for i in range(7)}
     for r in word_records:
-        day = r.studied_at.strftime("%m-%d")
-        if day in daily_words:
-            daily_words[day] += 1
+        studied_at = ensure_utc(r.studied_at)
+        if studied_at and studied_at >= week_ago:
+            day = studied_at.strftime("%m-%d")
+            if day in daily_words:
+                daily_words[day] += 1
 
     # 统计
     total_tasks = db.query(func.count(Task.id)).filter(Task.owner_id == user_id).scalar()
     done_tasks = db.query(func.count(Task.id)).filter(Task.owner_id == user_id, Task.status == "done").scalar()
     total_words = db.query(func.count(Word.id)).join(WordBook).filter(WordBook.user_id == user_id).scalar()
     mastered = db.query(func.count(Word.id)).join(WordBook).filter(WordBook.user_id == user_id, Word.mastery >= 80).scalar()
-    pomodoro_min = db.query(func.sum(PomodoroSession.duration_minutes)).filter(
-        PomodoroSession.user_id == user_id, PomodoroSession.started_at >= week_ago, PomodoroSession.is_completed == True
-    ).scalar() or 0
+    pomodoro_sessions = db.query(PomodoroSession).filter(
+        PomodoroSession.user_id == user_id, PomodoroSession.is_completed == True
+    ).all()
+    pomodoro_min = sum(s.duration_minutes for s in pomodoro_sessions if ensure_utc(s.started_at) and ensure_utc(s.started_at) >= week_ago)
 
     # 绘图
     fig, axes = plt.subplots(2, 2, figsize=(12, 8))

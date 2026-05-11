@@ -10,6 +10,13 @@ from ..models import (Task, StudyRecord, Word, WordBook, WordStudyRecord,
 router = APIRouter(prefix="/api/stats", tags=["数据可视化"])
 
 
+def ensure_utc(dt):
+    """确保 datetime 有时区信息"""
+    if dt and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 @router.get("/overview")
 def overview(user_id: int, db: Session = Depends(get_db)):
     total = db.query(func.count(Task.id)).filter(Task.owner_id == user_id).scalar()
@@ -36,11 +43,12 @@ def overview(user_id: int, db: Session = Depends(get_db)):
 def weekly_tasks(user_id: int, db: Session = Depends(get_db)):
     today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = today - timedelta(days=7)
-    tasks = db.query(Task).filter(Task.owner_id == user_id, Task.completed_at >= week_ago).all()
+    tasks = db.query(Task).filter(Task.owner_id == user_id, Task.status == "done").all()
     daily = {(today - timedelta(days=6 - i)).strftime("%m-%d"): 0 for i in range(7)}
     for t in tasks:
-        if t.completed_at:
-            day = t.completed_at.strftime("%m-%d")
+        completed_at = ensure_utc(t.completed_at)
+        if completed_at and completed_at >= week_ago:
+            day = completed_at.strftime("%m-%d")
             if day in daily:
                 daily[day] += 1
     return [{"date": k, "count": v} for k, v in daily.items()]
@@ -50,12 +58,14 @@ def weekly_tasks(user_id: int, db: Session = Depends(get_db)):
 def weekly_words(user_id: int, db: Session = Depends(get_db)):
     today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = today - timedelta(days=7)
-    records = db.query(WordStudyRecord).filter(WordStudyRecord.user_id == user_id, WordStudyRecord.studied_at >= week_ago).all()
+    records = db.query(WordStudyRecord).filter(WordStudyRecord.user_id == user_id).all()
     daily = {(today - timedelta(days=6 - i)).strftime("%m-%d"): 0 for i in range(7)}
     for r in records:
-        day = r.studied_at.strftime("%m-%d")
-        if day in daily:
-            daily[day] += 1
+        studied_at = ensure_utc(r.studied_at)
+        if studied_at and studied_at >= week_ago:
+            day = studied_at.strftime("%m-%d")
+            if day in daily:
+                daily[day] += 1
     return [{"date": k, "count": v} for k, v in daily.items()]
 
 
@@ -64,13 +74,15 @@ def weekly_pomodoro(user_id: int, db: Session = Depends(get_db)):
     today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = today - timedelta(days=7)
     sessions = db.query(PomodoroSession).filter(
-        PomodoroSession.user_id == user_id, PomodoroSession.started_at >= week_ago, PomodoroSession.is_completed == True
+        PomodoroSession.user_id == user_id, PomodoroSession.is_completed == True
     ).all()
     daily = {(today - timedelta(days=6 - i)).strftime("%m-%d"): 0 for i in range(7)}
     for s in sessions:
-        day = s.started_at.strftime("%m-%d")
-        if day in daily:
-            daily[day] += s.duration_minutes
+        started_at = ensure_utc(s.started_at)
+        if started_at and started_at >= week_ago:
+            day = started_at.strftime("%m-%d")
+            if day in daily:
+                daily[day] += s.duration_minutes
     return [{"date": k, "minutes": v} for k, v in daily.items()]
 
 
@@ -97,13 +109,17 @@ def team_comparison(team_id: int, db: Session = Depends(get_db)):
     for m in members:
         user = db.get(User, m.user_id)
         if not user: continue
-        tasks_done = db.query(func.count(Task.id)).filter(Task.owner_id == m.user_id, Task.status == "done", Task.completed_at >= week_ago).scalar()
-        pomodoro_min = db.query(func.sum(PomodoroSession.duration_minutes)).filter(
-            PomodoroSession.user_id == m.user_id, PomodoroSession.started_at >= week_ago, PomodoroSession.is_completed == True
-        ).scalar() or 0
-        words_learned = db.query(func.count(WordStudyRecord.id)).filter(
-            WordStudyRecord.user_id == m.user_id, WordStudyRecord.studied_at >= week_ago
-        ).scalar()
+        # 计算本周完成的任务数
+        tasks = db.query(Task).filter(Task.owner_id == m.user_id, Task.status == "done").all()
+        tasks_done = sum(1 for t in tasks if ensure_utc(t.completed_at) and ensure_utc(t.completed_at) >= week_ago)
+        # 计算本周番茄钟时长
+        pomodoro_sessions = db.query(PomodoroSession).filter(
+            PomodoroSession.user_id == m.user_id, PomodoroSession.is_completed == True
+        ).all()
+        pomodoro_min = sum(s.duration_minutes for s in pomodoro_sessions if ensure_utc(s.started_at) and ensure_utc(s.started_at) >= week_ago)
+        # 计算本周学习单词数
+        word_records = db.query(WordStudyRecord).filter(WordStudyRecord.user_id == m.user_id).all()
+        words_learned = sum(1 for r in word_records if ensure_utc(r.studied_at) and ensure_utc(r.studied_at) >= week_ago)
         result.append({"username": user.username, "tasks_done": tasks_done, "pomodoro_minutes": pomodoro_min, "words_learned": words_learned})
     return result
 

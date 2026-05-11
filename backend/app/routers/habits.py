@@ -90,14 +90,19 @@ def checkin_habit(habit_id: int, db: Session = Depends(get_db)):
     habit = db.get(Habit, habit_id)
     if not habit:
         raise HTTPException(status_code=404, detail="习惯不存在")
+    # 检查今天是否已达到目标次数
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_count = (
+        db.query(func.count(HabitRecord.id))
+        .filter(HabitRecord.habit_id == habit_id, HabitRecord.completed_at >= today_start)
+        .scalar()
+    )
+    if today_count >= habit.target_count:
+        return {"message": "今日已完成目标", "today_count": today_count, "target": habit.target_count}
     record = HabitRecord(habit_id=habit_id, user_id=habit.user_id)
     db.add(record)
     db.commit()
-    today_count = (
-        db.query(func.count(HabitRecord.id))
-        .filter(HabitRecord.habit_id == habit_id, HabitRecord.completed_at >= datetime.now(timezone.utc).replace(hour=0, minute=0, second=0))
-        .scalar()
-    )
+    today_count += 1
     return {"message": "打卡成功", "today_count": today_count, "target": habit.target_count}
 
 
