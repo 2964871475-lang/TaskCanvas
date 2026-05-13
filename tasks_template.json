@@ -1,0 +1,169 @@
+{
+  "tasks": [
+    {
+      "title": "高数第8讲：定积分与变限积分",
+      "description": "观看视频04-06（定积分04、05，变限积分06），并完成王道书上对应例题及《300题》A组前10道",
+      "category": "daily",
+      "subject": "数学",
+      "priority": 1,
+      "difficulty": 3,
+      "estimated_minutes": 180,
+      "deadline": "2026-05-15T22:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "高数第8讲：反常积分",
+      "description": "观看视频07-08（反常积分），掌握判敛方法，做《300题》A组相关选择题",
+      "category": "daily",
+      "subject": "数学",
+      "priority": 1,
+      "difficulty": 4,
+      "estimated_minutes": 150,
+      "deadline": "2026-05-16T18:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "高数第9讲：积分计算（凑微分法、换元法）",
+      "description": "观看第9讲前4个视频，学习基本积分技巧，做课后例题",
+      "category": "daily",
+      "subject": "数学",
+      "priority": 1,
+      "difficulty": 3,
+      "estimated_minutes": 180,
+      "deadline": "2026-05-17T22:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "高数第9讲：分部积分法及综合练习",
+      "description": "完成第9讲剩余视频，做《300题》A组不定积分计算20道",
+      "category": "daily",
+      "subject": "数学",
+      "priority": 1,
+      "difficulty": 4,
+      "estimated_minutes": 200,
+      "deadline": "2026-05-19T22:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "计组第二章：数据的表示与运算（一）",
+      "description": "学习原码、反码、补码、移码，完成王道选择题15道",
+      "category": "daily",
+      "subject": "专业课",
+      "priority": 1,
+      "difficulty": 3,
+      "estimated_minutes": 120,
+      "deadline": "2026-05-15T18:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "计组第二章：定点数加减运算及溢出判断",
+      "description": "学习补码加减、溢出判断，做王道选择题10道+2道计算",
+      "category": "daily",
+      "subject": "专业课",
+      "priority": 1,
+      "difficulty": 4,
+      "estimated_minutes": 120,
+      "deadline": "2026-05-16T20:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "计组第二章：IEEE754浮点数表示",
+      "description": "重点学习浮点数格式、规格化、范围，做王道选择题+3道转换题",
+      "category": "daily",
+      "subject": "专业课",
+      "priority": 1,
+      "difficulty": 5,
+      "estimated_minutes": 150,
+      "deadline": "2026-05-17T20:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "计组第二章：浮点数运算及综合复习",
+      "description": "浮点加减法、舍入规则，完成章节综合题",
+      "category": "daily",
+      "subject": "专业课",
+      "priority": 2,
+      "difficulty": 4,
+      "estimated_minutes": 120,
+      "deadline": "2026-05-19T20:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "数据结构：排序章节收尾",
+      "description": "学习归并排序、基数排序，完成王道选择题10道",
+      "category": "daily",
+      "subject": "专业课",
+      "priority": 2,
+      "difficulty": 3,
+      "estimated_minutes": 60,
+      "deadline": "2026-05-16T12:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "数据结构：散列表与查找总结",
+      "description": "复习散列表ASL计算，完成第七章剩余选择题",
+      "category": "daily",
+      "subject": "专业课",
+      "priority": 2,
+      "difficulty": 3,
+      "estimated_minutes": 60,
+      "deadline": "2026-05-18T12:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "英语单词Unit5-6复习",
+      "description": "用APP快速复习已学单元，新学Unit6单词50个",
+      "category": "daily",
+      "subject": "英语",
+      "priority": 2,
+      "difficulty": 2,
+      "estimated_minutes": 45,
+      "deadline": "2026-05-15T23:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "英语四级阅读真题（2024年6月第一套）",
+      "description": "限时40分钟完成4篇阅读，精析错题并整理生词",
+      "category": "daily",
+      "subject": "英语",
+      "priority": 1,
+      "difficulty": 4,
+      "estimated_minutes": 90,
+      "deadline": "2026-05-16T17:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "英语四级听力真题训练",
+      "description": "完成一套听力真题（新闻+长对话+篇章），反复听写错题",
+      "category": "daily",
+      "subject": "英语",
+      "priority": 2,
+      "difficulty": 4,
+      "estimated_minutes": 60,
+      "deadline": "2026-05-18T21:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "课程考试复习（假设5月16日考试）",
+      "description": "根据考试科目整理笔记、做往年题或复习重点",
+      "category": "longterm",
+      "subject": "考试",
+      "priority": 1,
+      "difficulty": 3,
+      "estimated_minutes": 240,
+      "deadline": "2026-05-15T22:00:00",
+      "status": "pending"
+    },
+    {
+      "title": "每日复盘与错题整理",
+      "description": "记录当天高数、计组、英语的错题和易忘点",
+      "category": "daily",
+      "subject": "复盘",
+      "priority": 2,
+      "difficulty": 1,
+      "estimated_minutes": 20,
+      "deadline": null,
+      "status": "pending"
+    }
+  ]
+}

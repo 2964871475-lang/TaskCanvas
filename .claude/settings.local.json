@@ -5,7 +5,9 @@
       "WebSearch",
       "Bash(gh repo *)",
       "WebFetch(domain:github.com)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(pip show *)",
+      "Bash(python *)"
     ]
   }
 }

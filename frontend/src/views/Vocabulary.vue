@@ -7,8 +7,8 @@
       <el-tab-pane label="词书管理" name="books">
         <el-row :gutter="20" class="vocab-row">
           <!-- 左侧：词书列表 -->
-          <el-col :span="6">
-            <el-card class="vocab-card" shadow="hover">
+          <el-col :xs="24" :sm="8" :md="5">
+            <el-card class="vocab-card book-panel" shadow="hover">
               <template #header>
                 <div class="card-header">
                   <span>我的词书</span>
@@ -17,8 +17,10 @@
               </template>
               <div class="book-list">
                 <div v-for="book in books" :key="book.id" class="book-item" :class="{ active: currentBook?.id === book.id }" @click="selectBook(book)">
-                  <span>{{ book.name }}</span>
-                  <el-tag size="small">{{ book.word_count || 0 }}词</el-tag>
+                  <div class="book-info">
+                    <span class="book-name">{{ book.name }}</span>
+                    <span class="book-count">{{ book.word_count || 0 }}词</span>
+                  </div>
                 </div>
                 <el-empty v-if="!books.length" description="还没有词书" :image-size="60" />
               </div>
@@ -26,8 +28,8 @@
           </el-col>
 
           <!-- 右侧：单词内容 -->
-          <el-col :span="18">
-            <el-card class="vocab-card" shadow="hover">
+          <el-col :xs="24" :sm="16" :md="19">
+            <el-card class="vocab-card content-panel" shadow="hover">
               <template #header>
                 <div class="card-header">
                   <span class="card-title">{{ currentBook ? currentBook.name : '选择左侧词书开始' }}</span>
@@ -65,20 +67,25 @@
               </div>
 
               <!-- 单词列表模式 -->
-              <el-table v-else :data="words" stripe style="width:100%">
-                <el-table-column prop="english" label="英文" width="150" />
-                <el-table-column prop="chinese" label="中文" />
-                <el-table-column prop="mastery" label="掌握度" width="120">
-                  <template #default="{ row }">
-                    <el-progress :percentage="Math.round(row.mastery)" :stroke-width="8" />
-                  </template>
-                </el-table-column>
-                <el-table-column label="收藏" width="60">
-                  <template #default="{ row }">
-                    <el-button text @click="toggleStar(row)">{{ row.is_starred ? '★' : '☆' }}</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
+              <div v-else class="word-table-wrap">
+                <el-table :data="words" stripe style="width:100%" height="100%">
+                  <el-table-column prop="english" label="英文" width="180" />
+                  <el-table-column prop="chinese" label="中文" />
+                  <el-table-column prop="phonetic" label="音标" width="160" />
+                  <el-table-column prop="mastery" label="掌握度" width="150">
+                    <template #default="{ row }">
+                      <el-progress :percentage="Math.round(row.mastery)" :stroke-width="8" />
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="收藏" width="70">
+                    <template #default="{ row }">
+                      <el-button text @click="toggleStar(row)">{{ row.is_starred ? '★' : '☆' }}</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-empty v-if="!words.length && currentBook" description="词书为空，请导入单词" :image-size="80" />
+                <el-empty v-if="!currentBook" description="请从左侧选择一本词书" :image-size="80" />
+              </div>
             </el-card>
           </el-col>
         </el-row>
@@ -89,10 +96,11 @@
         <el-card class="vocab-card" shadow="hover">
           <template #header><span>错误单词列表</span></template>
           <el-table :data="errorWords" stripe style="width:100%">
-            <el-table-column prop="english" label="英文" width="150" />
+            <el-table-column prop="english" label="英文" width="180" />
             <el-table-column prop="chinese" label="中文" />
+            <el-table-column prop="phonetic" label="音标" width="160" />
             <el-table-column prop="error_count" label="错误次数" width="100" />
-            <el-table-column prop="mastery" label="掌握度" width="120">
+            <el-table-column prop="mastery" label="掌握度" width="150">
               <template #default="{ row }">
                 <el-progress :percentage="Math.round(row.mastery)" :stroke-width="8" />
               </template>
@@ -233,25 +241,53 @@ onMounted(() => { loadBooks(); loadErrors(); });
 </script>
 
 <style scoped>
+.vocab-page { max-width: 1600px; margin: 0 auto; }
 .vocab-row { align-items: stretch; }
-.vocab-card { height: 100%; min-height: 400px; display: flex; flex-direction: column; }
+.vocab-card { height: 100%; display: flex; flex-direction: column; }
+.book-panel { min-height: 520px; }
+.content-panel { min-height: 520px; }
 
 .card-header { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 8px; }
 .card-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .header-buttons { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
 
 /* 词书列表 */
-.book-list { min-height: 100px; }
-.book-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; cursor: pointer; border-radius: 6px; transition: background .2s; margin-bottom: 2px; }
+.book-list { flex: 1; overflow-y: auto; }
+.book-item { padding: 12px; cursor: pointer; border-radius: 6px; transition: background .2s; margin-bottom: 4px; border: 1px solid transparent; }
 .book-item:hover { background: #f0f5ff; }
-.book-item.active { background: #ecf5ff; color: #409eff; }
+.book-item.active { background: #ecf5ff; border-color: #409eff; }
+.book-info { display: flex; justify-content: space-between; align-items: center; }
+.book-name { font-weight: 500; }
+.book-count { font-size: 12px; color: #909399; }
+
+/* 单词表格区域 */
+.word-table-wrap { flex: 1; display: flex; flex-direction: column; min-height: 350px; }
 
 /* 复习模式 */
-.review-card { text-align: center; padding: 40px 20px; }
-.word-display h2 { font-size: 36px; margin-bottom: 8px; }
-.phonetic { color: #909399; margin-bottom: 20px; }
-.answer { margin: 20px 0; }
-.example { color: #909399; font-style: italic; margin-top: 8px; }
-.review-actions { display: flex; gap: 12px; justify-content: center; margin-bottom: 12px; }
-.review-progress { color: #909399; margin-top: 8px; }
+.review-card { text-align: center; padding: 60px 20px; }
+.word-display h2 { font-size: 42px; margin-bottom: 8px; }
+.phonetic { color: #909399; margin-bottom: 20px; font-size: 16px; }
+.answer { margin: 24px 0; }
+.answer p:first-child { font-size: 24px; margin-bottom: 8px; }
+.example { color: #909399; font-style: italic; }
+.review-actions { display: flex; gap: 16px; justify-content: center; margin-bottom: 16px; }
+.review-progress { color: #909399; margin-top: 12px; }
+
+@media (max-width: 768px) {
+  .vocab-row :deep(.el-col) { margin-bottom: 12px; }
+  .book-panel { min-height: auto; max-height: 260px; }
+  .content-panel { min-height: auto; }
+  .word-table-wrap { min-height: auto; }
+  .review-card { padding: 30px 12px; }
+  .word-display h2 { font-size: 30px; }
+  .answer p:first-child { font-size: 18px; }
+  .header-buttons { flex-wrap: wrap; }
+}
+@media (max-width: 480px) {
+  .card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .header-buttons { width: 100%; }
+  .header-buttons .el-button { flex: 1; }
+  .review-actions { flex-direction: column; align-items: center; }
+  .review-actions .el-button { width: 100%; }
+}
 </style>

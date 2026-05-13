@@ -9,6 +9,7 @@ const routes = [
   { path: "/dashboard", name: "Dashboard", component: () => import("../views/Dashboard.vue"), meta: { requiresAuth: true } },
   { path: "/team", name: "Team", component: () => import("../views/Team.vue"), meta: { requiresAuth: true } },
   { path: "/profile", name: "Profile", component: () => import("../views/Profile.vue"), meta: { requiresAuth: true } },
+  { path: "/admin", name: "Admin", component: () => import("../views/Admin.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/:pathMatch(.*)*", name: "NotFound", component: () => import("../views/NotFound.vue") },
 ];
 
@@ -23,6 +24,13 @@ router.beforeEach((to, from, next) => {
     if (!user) {
       next({ path: "/login", query: { redirect: to.fullPath } });
       return;
+    }
+    if (to.meta.requiresAdmin) {
+      const parsed = JSON.parse(user);
+      if (!parsed.is_admin) {
+        next({ path: "/" });
+        return;
+      }
     }
   }
   next();

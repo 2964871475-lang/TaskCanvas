@@ -77,6 +77,7 @@ async function changePassword() {
 </script>
 
 <style scoped>
+.profile-page { max-width: 900px; margin: 0 auto; }
 .stat-box { text-align: center; padding: 16px; }
 .stat-val { font-size: 28px; font-weight: 700; color: #409eff; }
 .stat-lbl { color: #909399; margin-top: 4px; }

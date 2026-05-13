@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta, timezone
+from pydantic import BaseModel
+from typing import Optional, List
 
 from ..database import get_db
 from ..models import (Task, StudyRecord, Word, WordBook, WordStudyRecord,
-                      PomodoroSession, Habit, HabitRecord, TeamMember, User)
+                      PomodoroSession, Habit, HabitRecord, TeamMember, User, StudyGoal)
 
 router = APIRouter(prefix="/api/stats", tags=["数据可视化"])
 
@@ -120,3 +122,96 @@ def habit_streak(user_id: int, db: Session = Depends(get_db)):
         total = db.query(func.count(HabitRecord.id)).filter(HabitRecord.habit_id == h.id).scalar()
         result.append({"habit_id": h.id, "name": h.name, "icon": h.icon, "today_count": today_count, "target": h.target_count, "total_records": total})
     return result
+
+
+# ==================== 学习目标 ====================
+
+class StudyGoalCreate(BaseModel):
+    user_id: int
+    goal_type: str  # tasks / minutes / words
+    target_value: int
+    period: str = "daily"
+
+
+class StudyGoalOut(BaseModel):
+    id: int
+    user_id: int
+    goal_type: str
+    target_value: int
+    period: str
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+
+@router.get("/study-goals", response_model=List[StudyGoalOut])
+def list_goals(user_id: int, db: Session = Depends(get_db)):
+    return db.query(StudyGoal).filter(StudyGoal.user_id == user_id).all()
+
+
+@router.post("/study-goals", response_model=StudyGoalOut, status_code=201)
+def create_goal(data: StudyGoalCreate, db: Session = Depends(get_db)):
+    existing = db.query(StudyGoal).filter(
+        StudyGoal.user_id == data.user_id,
+        StudyGoal.goal_type == data.goal_type,
+        StudyGoal.period == data.period,
+    ).first()
+    if existing:
+        existing.target_value = data.target_value
+        db.commit()
+        db.refresh(existing)
+        return existing
+    goal = StudyGoal(**data.model_dump())
+    db.add(goal)
+    db.commit()
+    db.refresh(goal)
+    return goal
+
+
+@router.delete("/study-goals/{goal_id}")
+def delete_goal(goal_id: int, db: Session = Depends(get_db)):
+    goal = db.get(StudyGoal, goal_id)
+    if not goal:
+        raise HTTPException(status_code=404, detail="目标不存在")
+    db.delete(goal)
+    db.commit()
+    return {"message": "已删除"}
+
+
+@router.get("/daily-progress")
+def daily_progress(user_id: int, db: Session = Depends(get_db)):
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    tasks_done = db.query(func.count(Task.id)).filter(
+        Task.owner_id == user_id, Task.status == "done", Task.completed_at >= today
+    ).scalar()
+
+    study_minutes = db.query(func.sum(StudyRecord.duration_minutes)).filter(
+        StudyRecord.user_id == user_id, StudyRecord.start_time >= today
+    ).scalar() or 0
+
+    words_studied = db.query(func.count(WordStudyRecord.id)).filter(
+        WordStudyRecord.user_id == user_id, WordStudyRecord.studied_at >= today
+    ).scalar()
+
+    pomodoro_count = db.query(func.count(PomodoroSession.id)).filter(
+        PomodoroSession.user_id == user_id,
+        PomodoroSession.is_completed == True,
+        PomodoroSession.started_at >= today,
+    ).scalar()
+
+    goals = db.query(StudyGoal).filter(StudyGoal.user_id == user_id).all()
+    goal_map = {}
+    for g in goals:
+        goal_map[g.goal_type] = {"target": g.target_value, "period": g.period}
+
+    return {
+        "tasks_done": tasks_done,
+        "study_minutes": study_minutes,
+        "words_studied": words_studied,
+        "pomodoro_count": pomodoro_count,
+        "goals": {
+            "tasks": goal_map.get("tasks", {"target": 0, "period": "daily"}),
+            "minutes": goal_map.get("minutes", {"target": 0, "period": "daily"}),
+            "words": goal_map.get("words", {"target": 0, "period": "daily"}),
+        },
+    }

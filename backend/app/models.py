@@ -15,6 +15,8 @@ class User(Base):
     hashed_password = Column(String(128), nullable=False)
     avatar = Column(String(255), default="")
     bio = Column(Text, default="")
+    is_admin = Column(Boolean, default=False)
+    is_disabled = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     tasks = relationship("Task", back_populates="owner")
@@ -74,6 +76,7 @@ class Task(Base):
     difficulty = Column(Integer, default=3)  # 1-5
     estimated_minutes = Column(Integer, default=60)
     deadline = Column(DateTime, nullable=True)
+    scheduled_date = Column(DateTime, nullable=True)  # 计划执行日期
     sort_order = Column(Integer, default=0)
     streak_days = Column(Integer, default=0)  # 连续打卡天数
     last_checkin = Column(DateTime, nullable=True)
@@ -166,6 +169,7 @@ class PomodoroSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
     duration_minutes = Column(Integer, default=25)
     started_at = Column(DateTime, nullable=False)
     ended_at = Column(DateTime, nullable=True)
@@ -188,3 +192,41 @@ class StudyRecord(Base):
 
     task = relationship("Task", back_populates="study_records")
     user = relationship("User", back_populates="study_records")
+
+
+# ==================== 模块6: 公告与操作日志 ====================
+
+class Announcement(Base):
+    __tablename__ = "announcements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # null=全局公告
+    publisher_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    operator_id = Column(Integer, ForeignKey("users.id"))
+    action = Column(String(50), nullable=False)  # reset_password / disable_user / delete_user / dissolve_team / transfer_owner / remove_member / publish_announcement / delete_announcement / export_data
+    target_type = Column(String(30), nullable=False)  # user / team / announcement / system
+    target_id = Column(Integer, nullable=True)
+    detail = Column(Text, default="")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# ==================== 模块7: 学习目标 ====================
+
+class StudyGoal(Base):
+    __tablename__ = "study_goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    goal_type = Column(String(20), nullable=False)  # tasks / minutes / words
+    target_value = Column(Integer, nullable=False)
+    period = Column(String(10), default="daily")  # daily / weekly
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

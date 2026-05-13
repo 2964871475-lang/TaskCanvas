@@ -7,6 +7,7 @@ export const useUserStore = defineStore("user", () => {
   const isLoggedIn = computed(() => !!user.value);
   const userId = computed(() => user.value?.id);
   const username = computed(() => user.value?.username || "");
+  const isAdmin = computed(() => !!user.value?.is_admin);
 
   function setUser(data) {
     user.value = data;
@@ -25,5 +26,5 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
-  return { user, isLoggedIn, userId, username, setUser, logout, updateProfile };
+  return { user, isLoggedIn, userId, username, isAdmin, setUser, logout, updateProfile };
 });

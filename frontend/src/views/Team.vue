@@ -10,8 +10,11 @@
           <template #header><span>我的团队</span></template>
           <div class="team-list">
             <div v-for="team in myTeams" :key="team.id" class="team-item" :class="{ active: selectedTeam?.id === team.id }" @click="selectTeam(team)">
-              <div class="team-name">{{ team.name }}</div>
-              <div class="team-desc">{{ team.description || "暂无描述" }}</div>
+              <div class="team-info">
+                <div class="team-name">{{ team.name }}</div>
+                <div class="team-desc">{{ team.description || "暂无描述" }}</div>
+              </div>
+              <el-button v-if="team.owner_id === store.userId" type="danger" text size="small" @click.stop="deleteTeam(team)">删除</el-button>
             </div>
             <el-empty v-if="!myTeams.length" description="还没有加入任何团队" :image-size="60" />
           </div>
@@ -46,7 +49,10 @@
           <div class="member-list">
             <div v-for="m in members" :key="m.id" class="member-item">
               <span class="member-name">{{ m.username }}</span>
-              <el-tag :type="m.role === 'owner' ? 'danger' : 'info'" size="small">{{ m.role === 'owner' ? '队长' : '成员' }}</el-tag>
+              <div class="member-actions">
+                <el-tag :type="m.role === 'owner' ? 'danger' : 'info'" size="small">{{ m.role === 'owner' ? '队长' : '成员' }}</el-tag>
+                <el-button v-if="isOwner && m.role !== 'owner'" type="danger" text size="small" @click="removeMember(m)">移除</el-button>
+              </div>
             </div>
             <el-empty v-if="!members.length" description="暂无成员" :image-size="60" />
           </div>
@@ -68,8 +74,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ref, computed, onMounted } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { useUserStore } from "../stores/user";
 import { userApi } from "../api";
 
@@ -79,6 +85,8 @@ const selectedTeam = ref(null);
 const members = ref([]);
 const inviteCode = ref("");
 const newTeam = ref({ name: "", description: "" });
+
+const isOwner = computed(() => selectedTeam.value?.owner_id === store.userId);
 
 onMounted(loadTeams);
 
@@ -93,6 +101,7 @@ async function selectTeam(team) {
 }
 
 async function createTeam() {
+  if (!newTeam.value.name.trim()) { ElMessage.warning("请输入团队名称"); return; }
   const { data } = await userApi.createTeam(newTeam.value, store.userId);
   ElMessage.success(`创建成功！邀请码：${data.invite_code}`);
   newTeam.value = { name: "", description: "" };
@@ -100,23 +109,45 @@ async function createTeam() {
 }
 
 async function joinTeam() {
+  if (!inviteCode.value.trim()) { ElMessage.warning("请输入邀请码"); return; }
   await userApi.joinTeam(inviteCode.value, store.userId);
   ElMessage.success("加入成功");
   inviteCode.value = "";
   loadTeams();
 }
+
+async function deleteTeam(team) {
+  try {
+    await ElMessageBox.confirm(`确定要删除团队「${team.name}」吗？删除后所有成员将被移除。`, "删除确认", { type: "warning" });
+    await userApi.deleteTeam(team.id, store.userId);
+    ElMessage.success("团队已删除");
+    if (selectedTeam.value?.id === team.id) { selectedTeam.value = null; members.value = []; }
+    loadTeams();
+  } catch {}
+}
+
+async function removeMember(member) {
+  try {
+    await ElMessageBox.confirm(`确定要移除成员「${member.username}」吗？`, "移除确认", { type: "warning" });
+    await userApi.removeMember(selectedTeam.value.id, member.user_id, store.userId);
+    ElMessage.success("已移除");
+    selectTeam(selectedTeam.value);
+  } catch {}
+}
 </script>
 
 <style scoped>
+.team-page { max-width: 1200px; margin: 0 auto; }
 .team-row { align-items: stretch; }
 .team-col { display: flex; flex-direction: column; gap: 16px; }
 .team-card { flex: 1; min-height: 200px; display: flex; flex-direction: column; }
 
 /* 团队列表 */
 .team-list { min-height: 60px; }
-.team-item { padding: 10px 12px; cursor: pointer; border-radius: 6px; margin-bottom: 4px; transition: background .2s; border: 1px solid #ebeef5; }
+.team-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; cursor: pointer; border-radius: 6px; margin-bottom: 4px; transition: background .2s; border: 1px solid #ebeef5; }
 .team-item:hover { background: #f0f5ff; border-color: #b3d8ff; }
 .team-item.active { background: #ecf5ff; border-color: #409eff; }
+.team-info { flex: 1; min-width: 0; }
 .team-name { font-weight: 600; margin-bottom: 2px; }
 .team-desc { font-size: 13px; color: #909399; }
 
@@ -130,4 +161,5 @@ async function joinTeam() {
 .member-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
 .member-item:last-child { border-bottom: none; }
 .member-name { font-weight: 500; }
+.member-actions { display: flex; align-items: center; gap: 8px; }
 </style>

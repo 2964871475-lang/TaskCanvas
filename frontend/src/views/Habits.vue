@@ -5,7 +5,7 @@
     <!-- 四个卡片：左列（习惯+排行）+ 右列（番茄钟+历史） -->
     <el-row :gutter="20" class="habits-row">
       <!-- 左列 -->
-      <el-col :span="12" class="habits-col">
+      <el-col :xs="24" :sm="24" :md="12" class="habits-col">
         <!-- 卡片1: 我的习惯 -->
         <el-card class="habits-card" shadow="hover">
           <template #header>
@@ -51,7 +51,7 @@
       </el-col>
 
       <!-- 右列 -->
-      <el-col :span="12" class="habits-col">
+      <el-col :xs="24" :sm="24" :md="12" class="habits-col">
         <!-- 卡片3: 番茄钟 -->
         <el-card class="habits-card" shadow="hover">
           <template #header><span>番茄钟</span></template>
@@ -63,12 +63,22 @@
               <el-button v-if="isPaused" type="primary" size="large" @click="resumeTimer">继续</el-button>
               <el-button v-if="isRunning || isPaused" type="danger" size="large" @click="stopTimer">结束</el-button>
             </div>
+            <div class="task-selector" v-if="pendingTasks.length">
+              <el-select v-model="selectedTaskId" placeholder="关联任务（可选）" clearable size="small" style="width:240px" :disabled="isRunning || isPaused">
+                <el-option v-for="t in pendingTasks" :key="t.id" :label="t.title" :value="t.id" />
+              </el-select>
+            </div>
             <div class="timer-presets">
               <el-radio-group v-model="duration" :disabled="isRunning || isPaused">
                 <el-radio-button :value="25">25分钟</el-radio-button>
                 <el-radio-button :value="45">45分钟</el-radio-button>
                 <el-radio-button :value="60">60分钟</el-radio-button>
+                <el-radio-button :value="0">自定义</el-radio-button>
               </el-radio-group>
+              <div v-if="duration === 0" class="custom-time">
+                <el-input-number v-model="customDuration" :min="1" :max="180" :step="5" size="small" />
+                <span class="custom-label">分钟</span>
+              </div>
             </div>
           </div>
         </el-card>
@@ -78,7 +88,10 @@
           <template #header><span>番茄钟历史</span></template>
           <div class="history-list">
             <div v-for="s in pomodoroHistory" :key="s.id" class="history-item">
-              <span>{{ s.duration_minutes }}分钟</span>
+              <div>
+                <span>{{ s.duration_minutes }}分钟</span>
+                <el-tag v-if="s.task_title" size="small" type="info" style="margin-left:8px">{{ s.task_title }}</el-tag>
+              </div>
               <span class="history-time">{{ formatDateTime(s.started_at) }}</span>
             </div>
             <el-empty v-if="!pomodoroHistory.length" description="暂无记录" :image-size="60" />
@@ -109,13 +122,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import dayjs from "dayjs";
-import { habitApi } from "../api";
+import { habitApi, taskApi } from "../api";
 import { useUserStore } from "../stores/user";
 
 const store = useUserStore();
+const pendingTasks = ref([]);
+const selectedTaskId = ref(null);
 const habits = ref([]);
 const leaderboard = ref([]);
 const pomodoroHistory = ref([]);
@@ -124,12 +139,16 @@ const editingHabit = ref(null);
 const habitForm = ref({ name: "", icon: "✓", frequency: "daily", target_count: 1 });
 
 const duration = ref(25);
+const customDuration = ref(30);
 const timeLeft = ref(25 * 60);
 const isRunning = ref(false);
 const isPaused = ref(false);
 let timer = null;
 let currentSessionId = null;
 const habitRecords = ref({});
+
+watch(duration, (val) => { if (!isRunning.value && !isPaused.value) timeLeft.value = (val === 0 ? customDuration.value : val) * 60; });
+watch(customDuration, (val) => { if (duration.value === 0 && !isRunning.value && !isPaused.value) timeLeft.value = val * 60; });
 
 const todayDone = computed(() => {
   const today = dayjs().format("YYYY-MM-DD");
@@ -162,6 +181,13 @@ async function loadHabits() {
 
 async function loadLeaderboard() { try { const { data } = await habitApi.leaderboard(); leaderboard.value = data; } catch {} }
 async function loadPomodoroHistory() { if (!store.userId) return; try { const { data } = await habitApi.pomodoroHistory(store.userId); pomodoroHistory.value = data; } catch {} }
+async function loadPendingTasks() {
+  if (!store.userId) return;
+  try {
+    const { data } = await taskApi.list(store.userId);
+    pendingTasks.value = data.filter(t => t.status !== "done");
+  } catch { /* ignore */ }
+}
 
 function editHabit(habit) {
   editingHabit.value = habit;
@@ -194,11 +220,14 @@ async function checkin(habit) {
 }
 
 function startTimer() {
-  timeLeft.value = duration.value * 60;
+  const mins = duration.value === 0 ? customDuration.value : duration.value;
+  if (mins <= 0) { ElMessage.warning("请选择有效的专注时长"); return; }
+  timeLeft.value = mins * 60;
   isRunning.value = true;
   isPaused.value = false;
   timer = setInterval(() => { timeLeft.value--; if (timeLeft.value <= 0) completeTimer(); }, 1000);
-  habitApi.startPomodoro({ user_id: store.userId, duration_minutes: duration.value }).then(({ data }) => { currentSessionId = data.id; });
+  habitApi.startPomodoro({ user_id: store.userId, duration_minutes: mins, task_id: selectedTaskId.value || undefined })
+    .then(({ data }) => { currentSessionId = data.id; });
 }
 
 function pauseTimer() { isRunning.value = false; isPaused.value = true; clearInterval(timer); }
@@ -219,20 +248,21 @@ async function completeTimer() {
   }
 }
 
-onMounted(() => { loadHabits(); loadLeaderboard(); loadPomodoroHistory(); });
+onMounted(() => { loadHabits(); loadLeaderboard(); loadPomodoroHistory(); loadPendingTasks(); });
 </script>
 
 <style scoped>
+.habits-page { max-width: 1600px; margin: 0 auto; }
 .habits-row { align-items: stretch; }
 .habits-col { display: flex; flex-direction: column; gap: 16px; }
-.habits-card { flex: 1; min-height: 200px; display: flex; flex-direction: column; }
+.habits-card { flex: 1; min-height: 280px; display: flex; flex-direction: column; }
 
 .card-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
 .header-actions { display: flex; gap: 8px; align-items: center; }
 .progress-text { font-weight: 600; color: #409eff; font-size: 14px; }
 
 /* 习惯列表 */
-.habit-list { min-height: 100px; }
+.habit-list { flex: 1; overflow-y: auto; min-height: 150px; }
 .habit-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
 .habit-item:last-child { border-bottom: none; }
 .habit-icon { font-size: 24px; width: 36px; text-align: center; flex-shrink: 0; }
@@ -244,7 +274,7 @@ onMounted(() => { loadHabits(); loadLeaderboard(); loadPomodoroHistory(); });
 .habit-actions { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
 
 /* 排行榜 */
-.leaderboard-list { min-height: 100px; }
+.leaderboard-list { flex: 1; overflow-y: auto; min-height: 150px; }
 .leader-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
 .leader-item:last-child { border-bottom: none; }
 .rank { font-weight: 700; color: #e6a23c; width: 36px; flex-shrink: 0; }
@@ -257,11 +287,22 @@ onMounted(() => { loadHabits(); loadLeaderboard(); loadPomodoroHistory(); });
 .timer-display.running { color: #e6a23c; animation: pulse 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
 .timer-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+.task-selector { margin-bottom: 12px; display: flex; justify-content: center; }
 .timer-presets { margin-top: 12px; }
+.custom-time { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
+.custom-label { color: #909399; font-size: 14px; }
 
 /* 番茄钟历史 */
-.history-list { min-height: 100px; }
+.history-list { flex: 1; overflow-y: auto; min-height: 150px; }
 .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
 .history-item:last-child { border-bottom: none; }
 .history-time { color: #909399; }
+
+@media (max-width: 768px) {
+  .habits-page { max-width: 100%; }
+  .habits-card { min-height: auto; }
+  .habit-actions { flex-wrap: wrap; }
+  .timer-display { font-size: 42px; }
+  .timer-presets :deep(.el-radio-button__inner) { padding: 6px 10px; font-size: 12px; }
+}
 </style>

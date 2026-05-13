@@ -116,12 +116,24 @@ def get_review_words(user_id: int, limit: int = 20, db: Session = Depends(get_db
     return words
 
 
+@router.get("/review-count")
+def get_review_count(user_id: int, db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    count = (
+        db.query(Word)
+        .join(WordBook)
+        .filter(WordBook.user_id == user_id, Word.next_review <= now)
+        .count()
+    )
+    return {"count": count}
+
+
 @router.post("/words/{word_id}/answer", response_model=WordOut)
-def answer_word(word_id: int, data: StudyAnswer, db: Session = Depends(get_db)):
+def answer_word(word_id: int, data: StudyAnswer, user_id: int = 0, db: Session = Depends(get_db)):
     word = db.query(Word).get(word_id)
     if not word:
         raise HTTPException(status_code=404, detail="单词不存在")
-    record = WordStudyRecord(word_id=word_id, user_id=1, is_correct=data.is_correct)
+    record = WordStudyRecord(word_id=word_id, user_id=user_id, is_correct=data.is_correct)
     db.add(record)
     if data.is_correct:
         word.review_count += 1

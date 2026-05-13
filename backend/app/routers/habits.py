@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel
 
 from ..database import get_db
-from ..models import Habit, HabitRecord, PomodoroSession, User
+from ..models import Habit, HabitRecord, PomodoroSession, User, Task, StudyRecord
 
 router = APIRouter(prefix="/api/habits", tags=["习惯与番茄钟"])
 
@@ -39,6 +39,7 @@ class HabitOut(BaseModel):
 class PomodoroCreate(BaseModel):
     user_id: int
     duration_minutes: int = 25
+    task_id: Optional[int] = None
 
 
 class PomodoroOut(BaseModel):
@@ -47,6 +48,8 @@ class PomodoroOut(BaseModel):
     started_at: datetime
     ended_at: Optional[datetime]
     is_completed: bool
+    task_id: Optional[int] = None
+    task_title: str = ""
     model_config = {"from_attributes": True}
 
 
@@ -109,11 +112,22 @@ def get_habit_records(habit_id: int, db: Session = Depends(get_db)):
 
 @router.post("/pomodoro/start", response_model=PomodoroOut, status_code=201)
 def start_pomodoro(data: PomodoroCreate, db: Session = Depends(get_db)):
-    session = PomodoroSession(user_id=data.user_id, duration_minutes=data.duration_minutes, started_at=datetime.now(timezone.utc))
+    session = PomodoroSession(
+        user_id=data.user_id, duration_minutes=data.duration_minutes,
+        task_id=data.task_id, started_at=datetime.now(timezone.utc),
+    )
     db.add(session)
     db.commit()
     db.refresh(session)
-    return session
+    task_title = ""
+    if session.task_id:
+        task = db.get(Task, session.task_id)
+        task_title = task.title if task else ""
+    return PomodoroOut(
+        id=session.id, duration_minutes=session.duration_minutes,
+        started_at=session.started_at, ended_at=session.ended_at,
+        is_completed=session.is_completed, task_id=session.task_id, task_title=task_title,
+    )
 
 
 @router.patch("/pomodoro/{session_id}/complete", response_model=PomodoroOut)
@@ -123,14 +137,43 @@ def complete_pomodoro(session_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="番茄钟会话不存在")
     session.ended_at = datetime.now(timezone.utc)
     session.is_completed = True
+    # 自动创建学习记录
+    record = StudyRecord(
+        task_id=session.task_id, user_id=session.user_id,
+        start_time=session.started_at, end_time=session.ended_at,
+        duration_minutes=session.duration_minutes, note="番茄钟完成",
+    )
+    db.add(record)
     db.commit()
     db.refresh(session)
-    return session
+    task_title = ""
+    if session.task_id:
+        task = db.get(Task, session.task_id)
+        task_title = task.title if task else ""
+    return PomodoroOut(
+        id=session.id, duration_minutes=session.duration_minutes,
+        started_at=session.started_at, ended_at=session.ended_at,
+        is_completed=session.is_completed, task_id=session.task_id, task_title=task_title,
+    )
 
 
 @router.get("/pomodoro/history", response_model=List[PomodoroOut])
 def pomodoro_history(user_id: int, db: Session = Depends(get_db)):
-    return db.query(PomodoroSession).filter(PomodoroSession.user_id == user_id, PomodoroSession.is_completed == True).order_by(PomodoroSession.started_at.desc()).limit(20).all()
+    sessions = db.query(PomodoroSession).filter(
+        PomodoroSession.user_id == user_id, PomodoroSession.is_completed == True
+    ).order_by(PomodoroSession.started_at.desc()).limit(20).all()
+    result = []
+    for s in sessions:
+        task_title = ""
+        if s.task_id:
+            task = db.get(Task, s.task_id)
+            task_title = task.title if task else ""
+        result.append(PomodoroOut(
+            id=s.id, duration_minutes=s.duration_minutes,
+            started_at=s.started_at, ended_at=s.ended_at,
+            is_completed=s.is_completed, task_id=s.task_id, task_title=task_title,
+        ))
+    return result
 
 
 @router.get("/leaderboard")
