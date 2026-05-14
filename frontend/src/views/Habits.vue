@@ -147,6 +147,45 @@ let timer = null;
 let currentSessionId = null;
 const habitRecords = ref({});
 
+// 从 localStorage 恢复番茄钟状态
+function restorePomodoro() {
+  const saved = localStorage.getItem("pomodoro_state");
+  if (!saved) return;
+  try {
+    const state = JSON.parse(saved);
+    if (!state.sessionId) return;
+    const elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
+    const totalSeconds = state.durationMinutes * 60;
+    const remaining = totalSeconds - elapsed;
+    if (remaining <= 0) {
+      // 已超时，自动完成
+      localStorage.removeItem("pomodoro_state");
+      habitApi.completePomodoro(state.sessionId).then(() => {
+        loadLeaderboard();
+        loadPomodoroHistory();
+      });
+      return;
+    }
+    currentSessionId = state.sessionId;
+    duration.value = state.durationMinutes;
+    timeLeft.value = remaining;
+    isPaused.value = true;
+    ElMessage.info("检测到未完成的番茄钟，已恢复计时");
+  } catch { localStorage.removeItem("pomodoro_state"); }
+}
+
+function savePomodoroState() {
+  if (currentSessionId) {
+    localStorage.setItem("pomodoro_state", JSON.stringify({
+      sessionId: currentSessionId,
+      startedAt: Date.now() - ((duration.value === 0 ? customDuration.value : duration.value) * 60 - timeLeft.value) * 1000,
+      durationMinutes: duration.value === 0 ? customDuration.value : duration.value,
+    }));
+  } else {
+    localStorage.removeItem("pomodoro_state");
+  }
+}
+
 watch(duration, (val) => { if (!isRunning.value && !isPaused.value) timeLeft.value = (val === 0 ? customDuration.value : val) * 60; });
 watch(customDuration, (val) => { if (duration.value === 0 && !isRunning.value && !isPaused.value) timeLeft.value = val * 60; });
 
@@ -227,11 +266,23 @@ function startTimer() {
   isPaused.value = false;
   timer = setInterval(() => { timeLeft.value--; if (timeLeft.value <= 0) completeTimer(); }, 1000);
   habitApi.startPomodoro({ user_id: store.userId, duration_minutes: mins, task_id: selectedTaskId.value || undefined })
-    .then(({ data }) => { currentSessionId = data.id; });
+    .then(({ data }) => {
+      currentSessionId = data.id;
+      savePomodoroState();
+    });
 }
 
-function pauseTimer() { isRunning.value = false; isPaused.value = true; clearInterval(timer); }
-function resumeTimer() { isRunning.value = true; isPaused.value = false; timer = setInterval(() => { timeLeft.value--; if (timeLeft.value <= 0) completeTimer(); }, 1000); }
+function pauseTimer() {
+  isRunning.value = false;
+  isPaused.value = true;
+  clearInterval(timer);
+  savePomodoroState();
+}
+function resumeTimer() {
+  isRunning.value = true;
+  isPaused.value = false;
+  timer = setInterval(() => { timeLeft.value--; if (timeLeft.value <= 0) completeTimer(); }, 1000);
+}
 
 async function stopTimer() { completeTimer(); }
 
@@ -240,15 +291,26 @@ async function completeTimer() {
   isRunning.value = false;
   isPaused.value = false;
   if (currentSessionId) {
-    await habitApi.completePomodoro(currentSessionId);
-    ElMessage.success("专注完成！");
+    try {
+      await habitApi.completePomodoro(currentSessionId);
+      ElMessage.success("专注完成！");
+    } catch {
+      ElMessage.warning("保存失败，但番茄钟已结束");
+    }
     currentSessionId = null;
+    localStorage.removeItem("pomodoro_state");
     loadLeaderboard();
     loadPomodoroHistory();
   }
 }
 
-onMounted(() => { loadHabits(); loadLeaderboard(); loadPomodoroHistory(); loadPendingTasks(); });
+onMounted(() => {
+  restorePomodoro();
+  loadHabits();
+  loadLeaderboard();
+  loadPomodoroHistory();
+  loadPendingTasks();
+});
 </script>
 
 <style scoped>

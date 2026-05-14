@@ -229,4 +229,31 @@ async function handleSubmit() {
 .login-card h2 { text-align: center; font-size: 26px; color: var(--text-primary); margin-bottom: 8px; }
 .form-subtitle { text-align: center; color: var(--text-secondary); margin-bottom: 28px; font-size: 14px; }
 .switch-mode { text-align: center; margin-top: 8px; }
+
+@media (max-width: 768px) {
+  .login-page {
+    flex-direction: column;
+    margin: -24px;
+  }
+  .login-left {
+    padding: 30px 20px;
+    min-height: auto;
+  }
+  .brand-subtitle { font-size: 16px; margin-bottom: 20px; }
+  .brand-features { display: none; }
+  .animated-title { font-size: 32px; }
+  .login-right {
+    flex: 1;
+    padding: 20px;
+  }
+  .login-card { width: 100%; }
+  .login-card :deep(.el-card__body) { padding: 24px 16px; }
+}
+@media (max-width: 480px) {
+  .login-left { padding: 20px 16px; }
+  .animated-title { font-size: 26px; }
+  .brand-subtitle { font-size: 14px; margin-bottom: 12px; }
+  .login-right { padding: 12px; }
+  .login-card h2 { font-size: 22px; }
+}
 </style>

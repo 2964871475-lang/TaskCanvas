@@ -230,3 +230,19 @@ class StudyGoal(Base):
     target_value = Column(Integer, nullable=False)
     period = Column(String(10), default="daily")  # daily / weekly
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# ==================== 模块8: 单词连连看游戏排名 ====================
+
+class WordGameRecord(Base):
+    __tablename__ = "word_game_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    username = Column(String(50), nullable=False)
+    score = Column(Integer, nullable=False)
+    accuracy = Column(Float, nullable=False)  # 正确率 0-100
+    total_pairs = Column(Integer, nullable=False)
+    correct_count = Column(Integer, nullable=False)
+    time_seconds = Column(Integer, nullable=False)  # 用时（秒）
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

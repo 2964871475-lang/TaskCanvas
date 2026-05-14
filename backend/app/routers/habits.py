@@ -137,11 +137,20 @@ def complete_pomodoro(session_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="番茄钟会话不存在")
     session.ended_at = datetime.now(timezone.utc)
     session.is_completed = True
+    # 计算实际专注时长（秒→分钟，向上取整）
+    actual_minutes = session.duration_minutes  # 默认用计划时长
+    if session.started_at:
+        started = session.started_at
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        actual_seconds = (session.ended_at - started).total_seconds()
+        actual_minutes = max(1, int(actual_seconds // 60))
+    session.duration_minutes = actual_minutes
     # 自动创建学习记录
     record = StudyRecord(
         task_id=session.task_id, user_id=session.user_id,
         start_time=session.started_at, end_time=session.ended_at,
-        duration_minutes=session.duration_minutes, note="番茄钟完成",
+        duration_minutes=actual_minutes, note="番茄钟完成",
     )
     db.add(record)
     db.commit()

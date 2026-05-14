@@ -124,12 +124,37 @@
     </el-dialog>
 
     <!-- 批量导入对话框 -->
-    <el-dialog v-model="showBatchImport" title="批量导入单词" width="500px">
-      <p style="margin-bottom:8px;color:#909399">每行一个单词，格式：英文|中文|音标（音标可选）</p>
-      <el-input v-model="batchText" type="textarea" :rows="8" placeholder="apple|苹果|&#x2C8;&#xE6;pl&#x259;mbaby|婴儿" />
+    <el-dialog v-model="showBatchImport" title="批量导入单词" width="540px">
+      <el-tabs v-model="importTab">
+        <el-tab-pane label="文件导入" name="file">
+          <div class="import-file-area">
+            <p class="import-tip">支持 Excel(.xlsx) 和 CSV 文件</p>
+            <p class="import-tip">格式：第一行为表头，列顺序为 <b>英文, 中文, 音标(可选), 例句(可选)</b></p>
+            <el-upload
+              ref="uploadRef"
+              :auto-upload="false"
+              :limit="1"
+              accept=".xlsx,.csv"
+              :on-change="onFileChange"
+              :on-exceed="() => ElMessage.warning('只能上传一个文件')"
+              drag
+            >
+              <el-icon style="font-size:40px;color:#c0c4cc"><Upload /></el-icon>
+              <div style="margin-top:8px">拖拽文件到此处，或<em>点击上传</em></div>
+              <template #tip>
+                <div style="color:#909399;font-size:12px;margin-top:4px">仅支持 .xlsx / .csv 文件</div>
+              </template>
+            </el-upload>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="文本导入" name="text">
+          <p style="margin-bottom:8px;color:#909399">每行一个单词，格式：英文|中文|音标（音标可选）</p>
+          <el-input v-model="batchText" type="textarea" :rows="8" placeholder="apple|苹果|&#x2C8;&#xE6;pl&#x259;mbaby|婴儿" />
+        </el-tab-pane>
+      </el-tabs>
       <template #footer>
         <el-button @click="showBatchImport = false">取消</el-button>
-        <el-button type="primary" @click="batchImport">导入</el-button>
+        <el-button type="primary" @click="importTab === 'file' ? fileImport() : batchImport()">导入</el-button>
       </template>
     </el-dialog>
   </div>
@@ -138,6 +163,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
+import { Upload } from "@element-plus/icons-vue";
 import { vocabApi } from "../api";
 import { useUserStore } from "../stores/user";
 import WordMatchGame from "../components/WordMatchGame.vue";
@@ -162,6 +188,9 @@ const showAddBook = ref(false);
 const newBook = ref({ name: "", description: "" });
 const showBatchImport = ref(false);
 const batchText = ref("");
+const importTab = ref("file");
+const importFile = ref(null);
+const uploadRef = ref(null);
 
 async function loadBooks() {
   if (!store.userId) return;
@@ -237,6 +266,26 @@ async function batchImport() {
   selectBook(currentBook.value);
 }
 
+function onFileChange(file) {
+  importFile.value = file.raw;
+}
+
+async function fileImport() {
+  if (!importFile.value) { ElMessage.warning("请先选择文件"); return; }
+  const formData = new FormData();
+  formData.append("file", importFile.value);
+  try {
+    const { data } = await vocabApi.importFile(currentBook.value.id, formData);
+    ElMessage.success(data.message);
+    showBatchImport.value = false;
+    importFile.value = null;
+    uploadRef.value?.clearFiles();
+    selectBook(currentBook.value);
+  } catch {
+    ElMessage.error("导入失败，请检查文件格式");
+  }
+}
+
 onMounted(() => { loadBooks(); loadErrors(); });
 </script>
 
@@ -290,4 +339,8 @@ onMounted(() => { loadBooks(); loadErrors(); });
   .review-actions { flex-direction: column; align-items: center; }
   .review-actions .el-button { width: 100%; }
 }
+
+.import-file-area { padding: 10px 0; }
+.import-tip { color: #909399; font-size: 13px; margin-bottom: 12px; }
+.import-tip b { color: #409eff; }
 </style>

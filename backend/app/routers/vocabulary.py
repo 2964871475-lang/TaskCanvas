@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel
+import openpyxl
+import io
+import csv
 
 from ..database import get_db
-from ..models import WordBook, Word, WordStudyRecord
+from ..models import WordBook, Word, WordStudyRecord, WordGameRecord
 
 router = APIRouter(prefix="/api/vocabulary", tags=["单词学习"])
 
@@ -166,5 +169,97 @@ def get_error_words(user_id: int, db: Session = Depends(get_db)):
         .join(WordBook)
         .filter(WordBook.user_id == user_id, Word.error_count > 0)
         .order_by(Word.error_count.desc())
+        .all()
+    )
+
+
+@router.post("/books/{book_id}/import-file", status_code=201)
+async def import_file(book_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """从 Excel(.xlsx) 或 CSV 文件批量导入单词
+    格式要求：第一行为表头，列顺序为 英文, 中文, 音标(可选), 例句(可选)
+    表头名称可以自定义，但顺序必须正确
+    """
+    book = db.get(WordBook, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="词书不存在")
+
+    filename = file.filename.lower()
+    rows = []
+
+    if filename.endswith(".xlsx"):
+        content = await file.read()
+        wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True)
+        ws = wb.active
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            if i == 0:  # 跳过表头
+                continue
+            rows.append([str(c) if c is not None else "" for c in row])
+        wb.close()
+    elif filename.endswith(".csv"):
+        content = await file.read()
+        text = content.decode("utf-8-sig")
+        reader = csv.reader(io.StringIO(text))
+        for i, row in enumerate(reader):
+            if i == 0:
+                continue
+            rows.append(row)
+    else:
+        raise HTTPException(status_code=400, detail="仅支持 .xlsx 和 .csv 文件")
+
+    count = 0
+    for row in rows:
+        if len(row) < 2 or not row[0].strip() or not row[1].strip():
+            continue
+        word = Word(
+            book_id=book_id,
+            english=row[0].strip(),
+            chinese=row[1].strip(),
+            phonetic=row[2].strip() if len(row) > 2 else "",
+            example=row[3].strip() if len(row) > 3 else "",
+        )
+        db.add(word)
+        count += 1
+
+    db.commit()
+    return {"message": f"成功导入 {count} 个单词", "count": count}
+
+
+class GameSaveIn(BaseModel):
+    user_id: int
+    username: str
+    score: int
+    accuracy: float
+    total_pairs: int
+    correct_count: int
+    time_seconds: int
+
+
+class GameRecordOut(BaseModel):
+    id: int
+    username: str
+    score: int
+    accuracy: float
+    total_pairs: int
+    correct_count: int
+    time_seconds: int
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+
+@router.post("/game/save", response_model=GameRecordOut, status_code=201)
+def save_game_record(data: GameSaveIn, db: Session = Depends(get_db)):
+    record = WordGameRecord(**data.model_dump())
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+@router.get("/game/leaderboard", response_model=List[GameRecordOut])
+def game_leaderboard(limit: int = 20, db: Session = Depends(get_db)):
+    return (
+        db.query(WordGameRecord)
+        .order_by(WordGameRecord.score.desc(), WordGameRecord.time_seconds.asc())
+        .limit(limit)
         .all()
     )

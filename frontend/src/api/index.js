@@ -68,6 +68,9 @@ export const vocabApi = {
   answer: (wordId, isCorrect) => api.post(`/vocabulary/words/${wordId}/answer`, { is_correct: isCorrect }),
   getErrors: (userId) => api.get("/vocabulary/error-words", { params: { user_id: userId } }),
   toggleStar: (wordId) => api.post(`/vocabulary/words/${wordId}/star`),
+  importFile: (bookId, formData) => api.post(`/vocabulary/books/${bookId}/import-file`, formData, { headers: { "Content-Type": "multipart/form-data" } }),
+  saveGame: (data) => api.post("/vocabulary/game/save", data),
+  gameLeaderboard: () => api.get("/vocabulary/game/leaderboard"),
 };
 
 // 习惯接口

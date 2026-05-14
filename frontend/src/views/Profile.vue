@@ -2,10 +2,10 @@
   <div class="profile-page">
     <h1 class="page-title">个人档案</h1>
     <el-row :gutter="20">
-      <el-col :span="10">
+      <el-col :xs="24" :sm="24" :md="10">
         <el-card>
           <template #header>基本信息</template>
-          <el-form :model="form" label-width="80px">
+          <el-form :model="form" label-width="80px" class="profile-form">
             <el-form-item label="用户名"><el-input v-model="form.username" disabled /></el-form-item>
             <el-form-item label="邮箱"><el-input v-model="form.email" /></el-form-item>
             <el-form-item label="头像URL"><el-input v-model="form.avatar" placeholder="输入图片URL" /></el-form-item>
@@ -15,18 +15,18 @@
         </el-card>
         <el-card style="margin-top:16px">
           <template #header>修改密码</template>
-          <el-form :model="pwForm" label-width="80px">
+          <el-form :model="pwForm" label-width="80px" class="profile-form">
             <el-form-item label="原密码"><el-input v-model="pwForm.old_password" type="password" show-password /></el-form-item>
             <el-form-item label="新密码"><el-input v-model="pwForm.new_password" type="password" show-password /></el-form-item>
             <el-form-item><el-button type="warning" @click="changePassword">修改密码</el-button></el-form-item>
           </el-form>
         </el-card>
       </el-col>
-      <el-col :span="14">
+      <el-col :xs="24" :sm="24" :md="14" style="margin-top:16px">
         <el-card>
           <template #header>学习概览</template>
           <el-row :gutter="16">
-            <el-col :span="8" v-for="s in stats" :key="s.label">
+            <el-col :xs="24" :sm="8" v-for="s in stats" :key="s.label">
               <div class="stat-box">
                 <div class="stat-val">{{ s.value }}</div>
                 <div class="stat-lbl">{{ s.label }}</div>
@@ -81,4 +81,11 @@ async function changePassword() {
 .stat-box { text-align: center; padding: 16px; }
 .stat-val { font-size: 28px; font-weight: 700; color: #409eff; }
 .stat-lbl { color: #909399; margin-top: 4px; }
+
+@media (max-width: 768px) {
+  .profile-page { max-width: 100%; }
+  .profile-form :deep(.el-form-item__label) { width: 70px !important; }
+  .stat-box { padding: 12px 8px; }
+  .stat-val { font-size: 22px; }
+}
 </style>
